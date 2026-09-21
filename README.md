@@ -1,237 +1,121 @@
-# MobileVibe
+# MobileVibe 📱⚡
 
-**An iOS coding environment with an autonomous AI agent system**
+> **Пишите код где угодно. Деплойте когда угодно.**  
+> Профессиональная среда разработки для iPhone и iPad с автономным AI-агентом, нативной интеграцией с GitHub и двойным интерфейсом (терминал + SwiftUI).
 
-MobileVibe brings the power of desktop development tools to your pocket. It's a hybrid mobile IDE that combines a terminal-style CLI with modern SwiftUI interfaces, enabling developers to code, review, and ship from anywhere.
-
-**Contents:** [What It Does](#what-it-does) • [Technical Architecture](#technical-architecture) • [Codebase Metrics](#codebase-metrics) • [Key Technical Decisions](#key-technical-decisions) • [Technology Stack](#technology-stack) • [Project Structure](#project-structure)
-
----
-
-## What It Does
-
-MobileVibe solves a real problem: developers are mobile, but their tools aren't. Whether you're reviewing a PR on your commute, fixing a critical bug from a coffee shop, or prototyping an idea while traveling, MobileVibe keeps you productive.
-
-### Core Capabilities
-
-- **GitHub Integration** — Browse repositories, explore file trees, switch branches, and commit changes directly from your phone
-- **Multi-Provider AI Assistant** — Chat with OpenAI, Anthropic, Google, or DeepSeek models with seamless provider switching
-- **Autonomous Agent Mode** — An AI that doesn't just answer questions but actually reads your code, writes changes, and orchestrates multi-step tasks
-- **Smart Diff Viewer** — Review AI-generated changes with syntax-highlighted diffs before applying them to your repo
-- **Dual Interface** — Toggle between a power-user terminal and a polished SwiftUI experience while maintaining shared state
+[![App Store](https://img.shields.io/badge/App_Store-Скачать_в_App_Store-0284c7?style=flat-square&logo=apple&logoColor=white)](https://apps.apple.com/us/app/mobilevibe/id6760218385)
+[![Website](https://img.shields.io/badge/Сайт-mobilevibe.ru-0ea5e9?style=flat-square)](https://mobilevibe.ru)
+[![iOS](https://img.shields.io/badge/iOS-17%2B-10b981?style=flat-square&logo=apple)](https://apps.apple.com/us/app/mobilevibe/id6760218385)
+[![AI Providers](https://img.shields.io/badge/AI-OpenAI%20%7C%20Anthropic%20%7C%20Gemini%20%7C%20DeepSeek-6366f1?style=flat-square)](https://mobilevibe.ru)
+[![GitHub](https://img.shields.io/badge/GitHub-Native_Integration-181717?style=flat-square&logo=github)](https://mobilevibe.ru)
 
 ---
 
-## Technical Architecture
+## 💡 Что такое MobileVibe?
 
-### The Agent System
+Разработчики мобильны, но их основные инструменты по-прежнему привязаны к рабочему столу. Проверить pull request во время поездки, срочно исправить критический баг из кафе или воплотить архитектурную идею в коде прямо в пути — для этого больше не нужен ноутбук.
 
-The heart of MobileVibe is a **stateful, self-correcting AI agent** built on [LangGraph-Swift](https://github.com/bsorrentino/LangGraph-Swift). This isn't a simple chat wrapper—it's a multi-node workflow engine with planning, execution, validation, and feedback loops.
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           AGENT WORKFLOW GRAPH                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│    ┌─────────┐                                                              │
-│    │  START  │                                                              │
-│    └────┬────┘                                                              │
-│         │                                                                   │
-│         ▼                                                                   │
-│    ┌─────────┐                                                              │
-│    │ ROUTER  │ ─────────────────────────────────────────────────────┐       │
-│    └────┬────┘                                                      │       │
-│         │                                                           │       │
-│    ┌────┴────────────────────────┬──────────────────────────────────┤       │
-│    │                             │                                  │       │
-│    ▼                             ▼                                  ▼       │
-│ ┌──────────┐              ┌──────────────┐                ┌─────────────┐   │
-│ │ CHATTING │              │    CODING    │                │  PLANNING   │   │
-│ │   LLM    │              │     LLM      │◄───────┐       │     LLM     │   │
-│ └────┬─────┘              └──────┬───────┘        │       └──────┬──────┘   │
-│      │                           │                │              │          │
-│      │                    ┌──────┴──────┐         │       ┌──────┴──────┐   │
-│      │                    ▼             │         │       ▼             │   │
-│      │               ┌─────────┐        │         │  ┌─────────────┐    │   │
-│      │               │  TOOL   │        │         │  │ PLAN REVIEW │    │   │
-│      │               │EXECUTOR │────────┘         │  │ (User Y/N)  │    │   │
-│      │               └────┬────┘                  │  └──────┬──────┘    │   │
-│      │                    │                       │         │           │   │
-│      │                    ▼                       │         ▼           │   │
-│      │               ┌─────────┐                  │  ┌──────────────┐   │   │
-│      │               │EVALUATOR│──────────────────┤  │ ORCHESTRATOR │   │   │
-│      │               └────┬────┘  Needs Revision  │  └──────┬───────┘   │   │
-│      │                    │                       │         │           │   │
-│      │                    │ Approved              │    ┌────┴────┐      │   │
-│      │                    ▼                       │    ▼         │      │   │
-│      │               ┌─────────┐                  │ ┌──────┐     │      │   │
-│      │               │  FINAL  │                  │ │WORKER│─────┘      │   │
-│      │               │RESPONDER│                  │ │ LLM  │            │   │
-│      │               └────┬────┘                  │ └──┬───┘            │   │
-│      │                    │                       │    │                │   │
-│      │                    │                       │    └────► EVALUATOR ┘   │
-│      ▼                    ▼                       │                         │
-│    ┌─────────────────────────────────────────┐    │                         │
-│    │                   END                   │◄───┘                         │
-│    └─────────────────────────────────────────┘                              │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-**12 Specialized Nodes** handle distinct responsibilities:
-
-| Node | Purpose |
-|------|---------|
-| **Router** | Classifies requests into chatting, coding, or planning paths |
-| **Chatting LLM** | Handles conversational Q&A without tools |
-| **Coding LLM** | Executes single-task coding with autonomous tool usage |
-| **Planning LLM** | Breaks complex requests into multi-step plans with codebase exploration |
-| **Plan Review** | Requires user confirmation before executing plans |
-| **Plan Validator** | Validates plan quality with revision feedback loop |
-| **Orchestrator** | Coordinates multi-step execution with retry logic |
-| **Worker LLM** | Executes individual steps under orchestrator direction |
-| **Tool Executor** | Dispatches `readFile`, `writeFile`, `listFiles`, `askUser` |
-| **Evaluator** | Quality gate with approve/revise feedback loop (max 3 turns) |
-| **Final Responder** | Generates user-friendly completion summaries |
-
-### Provider-Native Structured Output
-
-A key technical innovation: **all 8 LLM nodes use provider-enforced JSON schemas** rather than prompt-based formatting. This eliminates parsing failures and ensures type-safe responses.
-
-```swift
-// Each provider has a dedicated implementation
-OpenAI:    response_format with strict JSON Schema
-Anthropic: Tool-based enforcement with forced tool_choice
-Google:    Native responseSchema in generationConfig
-DeepSeek:  JSON mode + schema guidance in system message
-
-// Unified interface abstracts provider differences
-func sendMessageWithSchema(messages:nodeType:) async throws -> AgentResponse
-```
-
-**8 Node-Specific Schemas** define the exact response structure for each node:
-
-```
-RouterSchema       → { action: "complete", response: "chatting"|"coding"|"planning" }
-CodingSchema       → { action: "tool"|"complete", tool?: {...}, response?: "..." }
-WorkerSchema       → { action: "tool"|"status", status?: { type, message } }
-EvaluatorSchema    → { action: "evaluate", evaluation: { decision, feedback } }
-...
-```
-
-### Architecture Patterns
-
-**Feature-Based Organization** — Code is organized by feature, not layer:
-
-```
-Features/
-├── Home/           # Dashboard: HomeView + HomeViewModel + HomeModels
-├── AIAssistant/    # Chat interface: AIAssistantView + ViewModel
-├── FileExplorer/   # Tree browser: FileExplorerView + ViewModel
-├── DiffBrowser/    # Change review: DiffBrowserView + ViewModel
-└── Terminal/       # CLI interface: TerminalView + ViewModel
-```
-
-**Protocol-Based Dependency Injection** — Services are injected via protocols through a central `ServiceContainer`:
-
-```swift
-protocol AIServiceProtocol {
-    func sendMessage(messages:provider:model:) async throws -> String
-    func sendMessageWithSchema(messages:nodeType:) async throws -> AgentResponse
-}
-
-// Production
-ServiceContainer.shared.register(AIService() as AIServiceProtocol)
-
-// Testing
-ServiceContainer.shared.register(MockAIService() as AIServiceProtocol)
-```
-
-**@MainActor Thread Safety** — All services use `@MainActor` for thread-safe shared mutable state without manual synchronization.
-
-**Unified Error Handling** — A single `AppError` enum with built-in retry logic:
-
-```swift
-enum AppError: LocalizedError {
-    case aiProvider(AIProviderError)
-    case github(GitHubError)
-    case agent(AgentError)
-    case fileContext(FileContextError)
-    ...
-
-    var shouldRetry: Bool { ... }      // Is this transient?
-    var retryDelay: TimeInterval { ... } // How long to wait?
-}
-```
+**MobileVibe** превращает ваш iPhone или iPad в мощную портативную среду разработки. Это не просто текстовый редактор или обертка над чатом — это полноценная IDE с глубокой интеграцией GitHub и интеллектуальным AI-агентом, который понимает контекст вашего проекта, самостоятельно исследует файлы, планирует решение и аккуратно вносит изменения.
 
 ---
 
-## Codebase Metrics
+## ⚡ Два режима. Одно мощное приложение.
 
-| Metric | Value |
-|--------|-------|
-| **Lines of Swift** | ~21,000 |
-| **Agent Nodes** | 12 |
-| **JSON Schemas** | 8 |
-| **AI Providers** | 4 (OpenAI, Anthropic, Google, DeepSeek) |
-| **Service Refactoring** | AgentService: 2,367 → 258 lines (89% reduction) |
-
----
-
-## Key Technical Decisions
-
-
-### Why Structured Output?
-
-Prompt-based JSON formatting fails. Models hallucinate structure, miss fields, and produce unparseable responses. Provider-native schemas:
-- **Guarantee compliance** — OpenAI strict mode, Anthropic tool forcing
-- **Enable type safety** — Responses decode directly to Swift structs
-- **Simplify prompts** — No JSON instructions cluttering task logic
-
-### Why Dual Interface?
-
-Power users want a terminal. Casual users want swipe and tap. Instead of choosing, MobileVibe offers both—sharing the same services, state, and conversation history. Toggle with one tap.
-
----
-
-## Technology Stack
-
-| Layer | Technology |
-|-------|------------|
-| **UI Framework** | SwiftUI with MVVM |
-| **Agent Framework** | LangGraph-Swift |
-| **Persistence** | Core Data |
-| **Security** | Keychain Services |
-| **Networking** | async/await with URLSession |
-| **Version Control** | GitHub REST API |
-
----
-
-
-## Project Structure
+MobileVibe адаптируется под ваши привычки. Переключайтесь между режимами в один тап — рабочее состояние, открытые файлы и история команд сохраняются автоматически.
 
 ```
-MobileVibe/
-├── App/                    # Entry point
-├── Core/
-│   ├── Navigation/         # AppState, NavigationRouter
-│   ├── DI/                 # ServiceContainer
-│   ├── Errors/             # AppError unified handling
-│   ├── Security/           # KeychainService
-│   └── Persistence/        # Core Data stack
-├── Features/               # Feature modules (View + ViewModel)
-├── Components/             # Reusable UI components
-└── Services/
-    ├── AI/                 # AIService, FileEditService
-    ├── Agent/
-    │   ├── Core/           # AgentService, AgentState, GraphBuilder
-    │   ├── Nodes/          # 12 node implementations
-    │   ├── Tools/          # ReadFile, WriteFile, ListFiles, AskUser
-    │   ├── StructuredOutput/ # Schema definitions & validation
-    │   └── Providers/      # OpenAI, Anthropic, Google, DeepSeek
-    ├── GitHub/             # GitHubService
-    ├── Conversation/       # Message management
-    └── FileContext/        # Smart file detection
+                    ┌──────────────────────────┐
+                    │    Ваш проект / Задача   │
+                    └─────────────┬────────────┘
+                                  │
+                  ┌───────────────┴───────────────┐
+                  ▼                               ▼
+       💻 Режим Терминала (CLI)         📱 Режим SwiftUI
+       • Командная строка для профи     • Нативный сенсорный UX
+       • Быстрый ввод и шорткаты        • Визуальный навигатор файлов
+       • Лаконичная хакерская эстетика  • Наглядный чат с AI и Diff
+                  │                               │
+                  └───────────────┬───────────────┘
+                                  ▼
+           🐙 Нативная интеграция с GitHub (Ветки, Коммиты, PR)
+                                  ▼
+           🤖 Мульти-провайдер AI: Claude • GPT-4o • Gemini • DeepSeek
 ```
 
+### 💻 1. Режим терминала (CLI)
+*Классическая среда для опытных разработчиков и фанатов командной строки.*
+- Управление репозиторием и навигация через удобные команды.
+- История вызовов и мгновенный доступ к буферу вывода.
+- Максимальная скорость работы и минималистичный дизайн.
+
+### 📱 2. Режим SwiftUI (Визуальный интерфейс)
+*Современный нативный интерфейс, созданный специально под жесты и экраны iOS.*
+- Наглядный дашборд проектов и интерактивное дерево файлов.
+- Привычный диалоговый интерфейс взаимодействия с AI-ассистентом.
+- Удобный просмотр и редактирование кода на ходу.
+
 ---
+
+## 🚀 Ключевые возможности
+
+### 🤖 Автономный AI-агент, а не просто чат-бот
+Большинство ассистентов лишь дают советы в окне чата. Агент MobileVibe действует как полноценный напарник:
+- **Исследует проект**: самостоятельно читает файлы и анализирует структуру кодовой базы.
+- **Строит план**: разбивает сложную задачу на логические шаги перед внесением изменений.
+- **Редактирует код**: производит аккуратные правки в нужных модулях.
+- **Проверяет себя**: валидирует результат и исправляет ошибки до отправки коммита.
+- **Поддерживает лучших провайдеров**: выбирайте между OpenAI (GPT-4o), Anthropic (Claude 3.5 Sonnet), Google (Gemini) и DeepSeek на лету.
+
+### 🐙 Нативный GitHub прямо в кармане
+- Полный доступ к вашим репозиториям и веткам.
+- Просмотр и редактирование файлов с подсветкой синтаксиса.
+- Создание коммитов и пуш в удаленный репозиторий в пару касаний.
+
+### 🔍 Визуальный Diff-вьюер для контроля изменений
+Безопасность вашего кода под полным контролем:
+- Цветная подсветка различий («до и после») для всех изменений, предложенных искусственным интеллектом.
+- Возможность детально проверить каждую строчку перед тем, как зафиксировать коммит.
+
+### 🔒 Безопасность и модель Bring Your Own Key (BYOK)
+- **Код остается вашим**: проект не отправляется на сторонние серверы-посредники.
+- **Надежное хранение ключей**: ваши API-ключи шифруются и хранятся исключительно в защищенном хранилище Apple Keychain на вашем устройстве.
+- **Честная тарификация**: подключайте свои ключи нейросетей и платите только провайдерам по их себестоимости.
+
+---
+
+## 💼 Для кого создан MobileVibe?
+
+| Пользователь | Сценарий применения |
+|--------------|---------------------|
+| 🚀 **Разработчики и инженеры** | Срочный хотфикс на проде, деплой патча во время поездки, ревью чужого PR без открытия ноутбука. |
+| 💡 **Фаундеры и инди-хакеры** | Мгновенное прототипирование: описали фичу голосом или текстом — получили готовый коммит. |
+| 📊 **DevOps & Tech Leads** | Быстрый аудит репозиториев, проверка конфигураций и управление ветками в любой момент. |
+
+---
+
+## 🏁 Как начать за 3 шага
+
+1. **Скачайте приложение**  
+   Установите [MobileVibe в App Store](https://apps.apple.com/us/app/mobilevibe/id6760218385) на ваш iPhone или iPad.
+
+2. **Подключите GitHub и AI**  
+   Авторизуйтесь через GitHub и укажите API-ключ любимого провайдера (OpenAI, Claude, Gemini или DeepSeek).
+
+3. **Создавайте и обновляйте код на ходу**  
+   Откройте нужный репозиторий, опишите задачу ассистенту или начните редактировать код в терминале.
+
+---
+
+## 🌐 Полезные ссылки
+
+- 📲 **App Store**: [Скачать MobileVibe](https://apps.apple.com/us/app/mobilevibe/id6760218385)
+- 🔗 **Официальный сайт**: [https://mobilevibe.ru](https://mobilevibe.ru)
+- 🚀 **Возможности и функции**: [https://mobilevibe.ru/features](https://mobilevibe.ru/features)
+- 💡 **Сценарии использования**: [https://mobilevibe.ru/use-cases](https://mobilevibe.ru/use-cases)
+- ☕ **Поддержать проект**: [https://mobilevibe.ru/ru/donate](https://mobilevibe.ru/ru/donate)
+
+---
+
+<div align="center">
+  <sub>MobileVibe ©. Профессиональная разработка для iOS. Пиши код где угодно.</sub>
+</div>
